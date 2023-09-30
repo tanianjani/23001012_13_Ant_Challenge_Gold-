@@ -14,7 +14,7 @@ from flask import Flask, jsonify
 from flask import request
 from flasgger import Swagger, LazyJSONEncoder
 from flasgger import swag_from
-
+from collections import Counter
 
 app = Flask(__name__)
 
@@ -65,6 +65,22 @@ def hello_world():
     response_data = jsonify(json_response)
     return response_data
 
+@swag_from("docs/text_processing.yml", methods=['POST'])
+@app.route('/text-processing', methods=['POST'])
+def text_processing():
+    post_data = request.files
+    input_text = post_data.get('text', '') 
+    processed_text = re.sub(r'[^a-zA-Z0-9 ]', '', input_text).strip()
+
+    json_response = {
+        'status_code' : 200,
+        'description' : 'Text Processing',
+        'text': input_text,
+        'processed_text': processed_text
+    }
+
+    response_data = jsonify(json_response)
+    return response_data
 
 @swag_from("docs/processing_file.yml", methods=['POST'])
 @app.route('/text-processing-file', methods=['POST'])
@@ -73,7 +89,7 @@ def text_processing_file():
     files_data = request.files
     input_file = files_data.get('file')    
     # Add data input file to file_df, with spesific setting and rows default:100
-    file_df = pd.read_csv(input_file, encoding='latin-1', nrows=100)
+    file_df = pd.read_csv(input_file, encoding='latin-1', nrows=10000)
 
     # ================= Cleansing Part =================
     # Use only tweet columns and remove duplicate
@@ -113,6 +129,25 @@ def text_processing_file():
                 if word==j.lower():
                     matched_list.append(word)
         return len(matched_list)
+    
+    def data_abusive_words(x):
+        matched_list = []
+        for i in range(len(df_abusive)):
+            for j in x.split():
+                word = df_abusive['ABUSIVE'].iloc[i]
+                if word.lower() == j.lower():
+                    matched_list.append(word)
+        return matched_list    
+    
+    # Apply the function to create a list of abusive words for each tweet
+    file_df['abusive_words'] = file_df['Tweet'].apply(lambda x: data_abusive_words(x))
+    # Flatten the list of abusive words
+    all_abusive_words = [word for sublist in file_df['abusive_words'] for word in sublist]
+    # Count the occurrences of each abusive word
+    abusive_word_counts = Counter(all_abusive_words)
+    # Find the mode (most frequent) abusive word(s)
+    mode_abusive_words = abusive_word_counts.most_common(1)  # Get the most common word(s)
+    # print("Mode Abusive Word(s):", mode_abusive_words)    
 
     # Create new column based on cleanse tweet that using function data cleansing and count data abusive
     file_df['cleaned_tweet'] = file_df['Tweet'].apply(lambda x: data_cleansing(x))
@@ -169,7 +204,7 @@ def text_processing_file():
     warnings.filterwarnings('ignore', category=FutureWarning)
     plt.title('Count of Estimated Number of Abusive Words')
     plt.xlabel('Estimated Number of Abusive Words')
-    plt.savefig('attachments/new_countplot.jpeg')
+    plt.savefig('attachments/barplot_num_of_abusive_words.jpeg')
 
     # Visualize num of cleanse words using boxplot
     plt.figure(figsize=(20,4))
@@ -178,11 +213,26 @@ def text_processing_file():
     warnings.filterwarnings('ignore', category=FutureWarning)
     plt.title('Number of Words Boxplot (after tweet cleansing)')
     plt.xlabel('')
-    plt.savefig('attachments/new_boxplot.jpeg')    
+    plt.savefig('attachments/boxplot_abusive_word.jpeg')    
+
+    # Visualize mode of abusive words
+    # Create a barplot of the mode abusive word(s)
+    # Extract the mode word(s) and their count
+    mode_word, mode_count = mode_abusive_words[0]
+    plt.figure(figsize=(10, 7))
+    plt.bar([mode_word], [mode_count], color='pink')
+    plt.title('Mode Abusive Word')
+    plt.xlabel('Abusive Word')
+    plt.ylabel('Frequency')
+    plt.savefig('attachments/mode_abusive_word.jpeg')
 
 
     # Export to new csv after data cleansing
+    # Assuming 'file_df' is your DataFrame, sort by descending
+    # file_df = file_df.sort_values(by='num_of_abusive_words', ascending=False)
     file_df.to_csv("attachments/data_cleanse.csv", index=False)  # Set index=False to exclude the index column
+    print("nilai mean: ",file_df['num_of_abusive_words'].mean())
+    print("nilai sum: ", file_df['num_of_abusive_words'].sum())
 
         
     # Print json response with data cleaned tweet

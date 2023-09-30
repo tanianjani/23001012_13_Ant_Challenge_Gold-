@@ -8,6 +8,7 @@ Folder Structure:
 
 List of Endpoint:
 - / : root endpoint, just dummy response get
+- //text-processing : endpoint cleansing data text input
 - /text-processing-file : endpoint cleansing data file by uploading a file
 
 Run App : (make sure no app running on port 5000)
@@ -18,7 +19,7 @@ http://localhost:5000/docs
 
 
 nb: 
-- default df list row that save to db is 100
+- default df list row that save to db is 10000
 can be adjust as needed.
 - folder attachments will be excluded on repo.
 
