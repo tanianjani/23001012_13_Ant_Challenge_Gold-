@@ -85,10 +85,25 @@ def text_processing_file():
     # Create function data cleansing with that replace all 
     # beside numbers words and space, to empty string. 
     # and using strip() function remove more spaces on first and end of tweet
+    # and replace kata baku to baku from df_kamlay file
     def data_cleansing(x):
         tweet = x
         cleaned_tweet = re.sub(r'[^a-zA-Z0-9 ]', '', tweet).strip()
+        words = cleaned_tweet.split()  # Split the tweet into words
+        cleaned_words = []
+
+        for word in words:
+            # Check if the word exists in the df_kamlay DataFrame. and if foudnd then use replacement of baku column, if not then use as is
+            replacement = df_kamlay[df_kamlay['tidak baku'] == word.lower()]['baku'].values
+            if replacement:
+                cleaned_words.append(replacement[0])
+            else:
+                cleaned_words.append(word)
+
+        cleaned_tweet = ' '.join(cleaned_words)
         return cleaned_tweet
+
+
     # Create function to count abusive words that appears per tweet
     def data_abusive_cnt(x):
         matched_list = []
